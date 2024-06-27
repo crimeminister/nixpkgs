@@ -88,15 +88,13 @@ in
 
       # By convention, modules have an "enable" option that determines whether they are active or
       # not.
-      enable = mkEnableOption ''Iroh is a protocol for syncing bytes. Bytes of any size, across any
-        number of devices. Use iroh to create apps that scale different.
-      '';
+      enable = mkEnableOption "Iroh is a protocol for syncing bytes. Bytes of any size, across any number of devices. Use iroh to create apps that scale different.";
 
       package = mkPackageOption pkgs "iroh" { };
 
       # NB: This is READ ONLY because there's no way to configure the listen port; iroh exposes as
       # few configuration knobs as possible. The default port can be read from this read-only
-      # option, but if a different port is chosen by the service it has to be retrieved another way.
+      # option, but if a different port is chosen by the service it has to be retrieved another way (?).
       listenPort = mkOption {
         description = "Address iroh listens on for connections from other nodes. If the port is taken iroh will choose a random port to listen on, so it can't be configured. This port is NOT automatically opened in the firewall.";
         type = types.port;
@@ -128,32 +126,6 @@ in
         type = types.nullOr types.str;
         default = null;
       };
-
-      # user = mkOption {
-      #   type = types.str;
-      #   default = "iroh";
-      #   description = "User under which the Iroh daemon runs.";
-      # };
-
-      # group = mkOption {
-      #   type = types.str;
-      #   default = "iroh";
-      #   description = "Group under which the Iroh daemon runs.";
-      # };
-
-      # TODO can we get rid of this when running with a systemd StateDir? Perhaps we only want it as
-      # a place to put our generated config file, when that's necessary?
-      # dataDir = mkOption {
-      #   type = types.path;
-      #   default = "/var/lib/iroh";
-      #   description = ''The data directory for iroh.
-
-      #     If the IROH_DATA_DIR environment variable is set, all other values will be
-      #     ignored in favour of IROH_DATA_DIR. If the directory path does not exist, iroh will attempt to
-      #     create all directories in the path string (similar to mkdir -p on Unix systems), failing if
-      #     the final path cannot be written to.
-      #   '';
-      # };
 
       extraFlags = mkOption {
         type = types.listOf types.str;
@@ -209,32 +181,11 @@ in
     assertions = [
       {
         assertion = cfg.rpcPort != null;
-        message = ''
-          The RPC port must be specified.
-        '';
+        message = "The RPC port must be specified.";
       }
     ];
 
     environment.systemPackages = [ cfg.package ];
-
-    # TODO If we need to have a static user/group, look here:
-    # https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/misc/ids.nix
-
-    # Create a user to run the service.
-    # users.users = mkIf (cfg.user == "iroh") {
-    #   iroh = {
-    #     group = cfg.group;
-    #     home = cfg.dataDir;
-    #     createHome = false;
-    #     uid = config.ids.uids.iroh;
-    #     description = "Iroh daemon user";
-    #     packages = [ ];
-    #   };
-    # };
-
-    # users.groups = mkIf (cfg.group == "iroh") {
-    #   iroh.gid = config.ids.gids.iroh;
-    # };
 
     # Run iroh with a systemd "dynamic user":
     # https://0pointer.net/blog/dynamic-users-with-systemd.html
@@ -246,8 +197,13 @@ in
 
       path = [ "/run/wrappers" pkgs.iroh ];
 
-      # When StateDirectory is "iroh" a writable directory is created at /var/lib/iroh.
-      environment.IROH_DATA_DIR = "/var/lib/iroh"; #cfg.dataDir;
+      # If the IROH_DATA_DIR environment variable is set, all other values will be ignored in favour
+      # of IROH_DATA_DIR. If the directory path does not exist, iroh will attempt to create all
+      # directories in the path string (similar to mkdir -p on Unix systems), failing if the final
+      # path cannot be written to.
+
+      # When the service state directory is "iroh" a writable directory is created at /var/lib/iroh.
+      environment.IROH_DATA_DIR = "/var/lib/iroh";
 
       # TODO create configuration that causes logs to be written under /var/log/iroh. This feature
       # is currently pending release in next version of iroh.
@@ -257,10 +213,7 @@ in
 
       # NB: we don't start in the background with --start because defining a systemd service.
       serviceConfig = {
-        ExecStart = [ "" "${cfg.package}/bin/iroh start ${irohFlags}" ];
-
-        #User = cfg.user;
-        #Group = cfg.group;
+        ExecStart = [ "${cfg.package}/bin/iroh start ${irohFlags}" ];
 
         DynamicUser = true;
         # /var/lib/iroh -> /var/lib/private/iroh
