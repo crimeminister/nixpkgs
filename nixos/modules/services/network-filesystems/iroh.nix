@@ -34,6 +34,29 @@ let
     cfg.extraFlags
   );
 
+  # A submodule to describe where logs may be placed.
+  logOutput = types.submodule {
+    options = {
+      # TODO output should be: rust=$level (a tracing_subscriber::EnvFilter)
+      level = mkOption {
+        type = types.enum [ "error" "warn" "info" "debug" "trace" ];
+        default = "info";
+      };
+      rotation = mkOption {
+        type = types.enum [ "hourly" "daily" "never" ];
+        default = "daily";
+      };
+      maxFiles = mkOption {
+        # TODO make sure unsigned >= 1
+        type = types.int;
+        default = 1;
+      };
+      dir = mkOption {
+        type = types.path;
+      };
+    };
+  };
+
   # A submodule that describes a relay node used to assist in NAT traversal.
   relayNode = types.submodule {
     options = {
@@ -133,6 +156,11 @@ in
         default = [ ];
       };
 
+      fileLogs = mkOption {
+        description = "Set the output location for logs.";
+        type = logOutput;
+      };
+
       relayNodes = mkOption {
         description = "Nodes used to assist in holepunching when NAT traversal fails. If configured, these nodes replace the default set of relay nodes.";
         type = types.listOf relayNode;
@@ -176,6 +204,24 @@ in
   # url = "https://euw1-1.derp.iroh.network."
   # stun_only = false
   # stun_port = 3478
+
+  # New config format as of v0.19.0:
+  # [[relay_nodes]]
+  # secret_key: ""
+  # enable_relay: true
+  # http_bind_addr: [::]:80
+  # tls:
+  # enable_stun: true
+  # stun_bind_addr: [::]:80
+  # limits:
+  # enable_metrics: true
+  # metrics_bind_addr
+
+  # [file_logs]
+  # rust_log = "iroh=info"
+  # rotation = "daily"
+  # max_files = 1
+  # dir = "/home/me/my_logs"
 
   config = mkIf cfg.enable {
     assertions = [
